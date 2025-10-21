@@ -303,8 +303,7 @@
     });
 
     // Отправка
-    bookBtn.addEventListener('click', () => {
-      const hotel = hotelSelect.value;
+    bookBtn.addEventListener('click', () => {      const hotel = hotelSelect.value;
       const category = categorySelect.value;
       const guests = parseInt(document.getElementById('guests').value);
       const lastName = document.getElementById('lastName').value.trim();
@@ -381,7 +380,7 @@
     WebApp.showAlert("Ошибка отправки: " + e.message);
   }
   // УДАЛИ ВСЁ, ЧТО БЫЛО ЗДЕСЬ НИЖЕ (второй вызов sendData и close)
-});
+);
 
       WebApp.close();
     });
