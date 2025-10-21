@@ -198,7 +198,10 @@
     const WebApp = window.Telegram.WebApp;
     WebApp.ready();
     WebApp.expand();
-
+if (!WebApp || !WebApp.ready) {
+  alert("Telegram WebApp не загружен. Обновите страницу.");
+  throw new Error("Telegram WebApp not available");
+}
     // Темы
     document.documentElement.style.setProperty('--tg-theme-bg-color', WebApp.backgroundColor || '#ffffff');
     document.documentElement.style.setProperty('--tg-theme-text-color', WebApp.textColor || '#000000');
