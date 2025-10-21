@@ -347,31 +347,6 @@
         WebApp.showAlert('Некорректный email');
         return;
       }
-      // Внутри bookBtn.addEventListener('click', () => { ... })
-
-const payload = {
-  hotel,
-  category,
-  guests,
-  lastName,
-  firstName,
-  middleName,
-  email,
-  passportSeries,
-  passportNumber,
-  issueDate,
-  issuedBy,
-  phone: '+7' + phoneRaw.slice(1),
-  comment,
-  checkin,
-  checkout
-};
-
-// 🔎 Отладка: покажи данные в алерте (работает даже в Telegram!)
-WebApp.showAlert("Отправляю: " + JSON.stringify(payload));
-
-// ИЛИ (лучше) — выведи в консоль (если тестируешь в браузере)
-console.log("Отправляю данные:", payload);
 
 WebApp.sendData(JSON.stringify(payload));
 WebApp.close();
