@@ -347,7 +347,35 @@
         WebApp.showAlert('Некорректный email');
         return;
       }
+      // Перед отправкой
+const payload = {
+  hotel,
+  category,
+  guests,
+  lastName,
+  firstName,
+  middleName,
+  email,
+  passportSeries,
+  passportNumber,
+  issueDate,
+  issuedBy,
+  phone: '+7' + phoneRaw.slice(1),
+  comment,
+  checkin,
+  checkout
+};
 
+// Отладка: покажи данные в алерте (работает в Telegram!)
+WebApp.showAlert("Отправляю: " + JSON.stringify(payload));
+
+// Отправка
+try {
+  WebApp.sendData(JSON.stringify(payload));
+  WebApp.close();
+} catch (e) {
+  WebApp.showAlert("Ошибка отправки: " + e.message);
+}
       WebApp.sendData(JSON.stringify({
         hotel,
         category,
