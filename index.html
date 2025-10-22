@@ -205,8 +205,7 @@
 
     WebApp.ready();
     WebApp.expand();
-    WebApp.showAlert("Версия: " + WebApp.version);
-
+   
     // Показ версии (опционально)
     // WebApp.showAlert("Версия: " + WebApp.version);
 
@@ -379,11 +378,14 @@
       };
 
       // Отправка
+       WebApp.showAlert("Данные сформированы: " + payload);
       try {
         WebApp.sendData(JSON.stringify(payload));
         WebApp.close();
+        WebApp.showAlert("Данные отправлены ");
       } catch (e) {
         WebApp.showAlert("Ошибка отправки: " + e.message);
+        WebApp.showAlert("Данные не отправлены ");
       }
     });
   </script>
