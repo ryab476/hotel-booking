@@ -8,6 +8,7 @@
   <button onclick="send()">Отправить тест</button>
   <script>
     // Проверка, что WebApp доступен
+    console.log("initData:", WebApp.initData);
     if (!window.Telegram || !window.Telegram.WebApp) {
       alert("Telegram WebApp недоступен");
       throw new Error("Telegram WebApp not available");
