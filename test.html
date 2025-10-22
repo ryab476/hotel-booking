@@ -12,16 +12,18 @@
       alert("Telegram WebApp недоступен");
       WebApp.showAlert("Telegram WebApp недоступен";
       throw new Error("Telegram WebApp not available");
+    else
+      WebApp.showAlert("Telegram WebApp доступен";
     }
 
     Telegram.WebApp.ready();
     Telegram.WebApp.expand();
 
     function send() {
+      WebApp.showAlert("Функция отправки сработала";
       Telegram.WebApp.sendData(JSON.stringify({test: "работает"}));
       Telegram.WebApp.close();
     }
-    send();
   </script>
 </body>
 </html>
