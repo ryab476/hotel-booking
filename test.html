@@ -7,6 +7,15 @@
 <body>
   <button onclick="send()">Отправить тест</button>
   <script>
+    // Проверка, что WebApp доступен
+    if (!window.Telegram || !window.Telegram.WebApp) {
+      alert("Telegram WebApp недоступен");
+      throw new Error("Telegram WebApp not available");
+    }
+
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+
     function send() {
       Telegram.WebApp.sendData(JSON.stringify({test: "работает"}));
       Telegram.WebApp.close();
