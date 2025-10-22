@@ -6,26 +6,21 @@
 </head>
 <body>
   <button onclick="send()">Отправить тест</button>
-
   <script>
-    // Проверка, что Telegram и Telegram.WebApp доступны
+    // Проверка, что WebApp доступен
     if (!window.Telegram || !window.Telegram.WebApp) {
       alert("Telegram WebApp недоступен");
-      console.error("Telegram WebApp not available");
       throw new Error("Telegram WebApp not available");
-    } else {
-      Telegram.WebApp.showAlert("Telegram WebApp доступен");
     }
 
-    // Инициализация
-    Telegram.WebApp.ready();
-    Telegram.WebApp.expand();
+    const WebApp = window.Telegram.WebApp;
+    WebApp.ready();
+    WebApp.expand();
 
-    // Функция отправки
     function send() {
-      Telegram.WebApp.showAlert("Функция отправки сработала");
-      Telegram.WebApp.sendData(JSON.stringify({ test: "работает" }));
-      Telegram.WebApp.close();
+      WebApp.showAlert("Функция отправки сработала");
+      WebApp.sendData(JSON.stringify({test: "работает"}));
+      WebApp.close();
     }
   </script>
 </body>
