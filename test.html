@@ -5,42 +5,62 @@
   <meta name="referrer" content="no-referrer-when-downgrade">
   <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <title>Telegram Mini App Test</title>
+  <title>Telegram WebApp Debug</title>
 </head>
-<body style="font-family: sans-serif; text-align: center; margin-top: 40px;">
-  <h2>🚀 Telegram WebApp Тест</h2>
-  <button id="sendBtn" style="padding:10px 20px; font-size:16px;">Отправить данные</button>
+<body style="font-family: sans-serif; padding: 20px;">
 
-  <p id="status" style="color: gray; margin-top: 20px;"></p>
+  <h2>🧩 Telegram Mini App — Диагностика</h2>
+
+  <button id="sendBtn" style="padding: 10px 20px; font-size: 16px;">📨 Отправить данные</button>
+
+  <h3>Статус:</h3>
+  <pre id="status" style="background:#f2f2f2; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
+
+  <h3>initData:</h3>
+  <pre id="initData" style="background:#e8f5e9; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
+
+  <h3>initDataUnsafe:</h3>
+  <pre id="initDataUnsafe" style="background:#fff3e0; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.ready();
     tg.expand();
 
-    // Показываем статус
-    const status = document.getElementById("status");
-    status.innerText = "✅ Telegram WebApp инициализирован";
+    const statusBox = document.getElementById("status");
+    const initBox = document.getElementById("initData");
+    const unsafeBox = document.getElementById("initDataUnsafe");
 
+    // Отображаем базовую информацию
+    initBox.textContent = tg.initData || "(пусто)";
+    unsafeBox.textContent = JSON.stringify(tg.initDataUnsafe || {}, null, 2);
+
+    if (tg.initData && tg.initData.length > 0) {
+      statusBox.textContent = "✅ WebApp открыт через Telegram.\nГотов к отправке данных.";
+    } else {
+      statusBox.textContent = "⚠️ Похоже, что WebApp открыт не из Telegram!";
+    }
+
+    // Обработчик кнопки
     document.getElementById("sendBtn").addEventListener("click", () => {
-      const data = { message: "ping", time: new Date().toISOString() };
-      console.log("📤 Отправляем в Telegram:", data);
+      const data = {
+        ping: "pong",
+        time: new Date().toISOString(),
+        user: tg.initDataUnsafe?.user?.username || "неизвестен"
+      };
+
+      console.log("📤 Отправляем:", data);
+      statusBox.textContent += "\n📤 Отправка данных...";
 
       try {
         tg.sendData(JSON.stringify(data));
-        status.innerText = "📨 Данные отправлены в Telegram";
+        statusBox.textContent += "\n✅ Данные отправлены в Telegram (вызван sendData()).";
         tg.close();
       } catch (err) {
-        console.error("Ошибка при отправке:", err);
-        status.innerText = "❌ Ошибка при отправке данных";
+        console.error("Ошибка при sendData:", err);
+        statusBox.textContent += "\n❌ Ошибка при sendData(): " + err.message;
       }
     });
-
-    // Проверим, что Mini App запущен через Telegram
-    if (!tg.initData || tg.initData === "") {
-      alert("⚠️ Это приложение нужно открывать через Telegram-бота!");
-      status.innerText = "⚠️ Не запущено через Telegram";
-    }
   </script>
 </body>
 </html>
