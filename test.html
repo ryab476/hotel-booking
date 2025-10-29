@@ -19,67 +19,45 @@
   <button id="sendBtn">Отправить ping</button>
   <div id="status"></div>
 
-  <script>
-    // Проверяем, запущено ли в Telegram
-    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  const WebApp = window.Telegram.WebApp;
+  WebApp.ready();
 
-    const statusEl = document.getElementById("status");
-    function setStatus(s){
-      statusEl.innerText = s;
+  document.getElementById('bookBtn').addEventListener('click', function() {
+    // Собираем данные из формы
+    const hotel = document.getElementById('hotel').value;
+    const category = document.getElementById('category').value;
+    const guests = document.getElementById('guests').value;
+    const lastName = document.getElementById('lastName').value;
+    const firstName = document.getElementById('firstName').value;
+    const middleName = document.getElementById('middleName').value || null;
+    const email = document.getElementById('email').value || null;
+    const passportSeries = document.getElementById('passportSeries').value;
+    const passportNumber = document.getElementById('passportNumber').value;
+    const issueDate = document.getElementById('issueDate').value;
+    const issuedBy = document.getElementById('issuedBy').value;
+    const phone = document.getElementById('phone').value;
+    const comment = document.getElementById('comment').value || null;
+    const checkin = document.getElementById('checkin').value;
+    const checkout = document.getElementById('checkout').value;
+
+    // Валидация (минимальная)
+    if (!hotel || !category || !lastName || !firstName) {
+      WebApp.showAlert("Заполните обязательные поля");
+      return;
     }
 
-    if (!tg) {
-      // не внутри Telegram WebApp
-      alert("⚠️ Откройте это приложение через Telegram (кнопку бота). В браузере sendData не сработает.");
-      setStatus("Открыто вне Telegram — данные не будут отправлены.");
-    } else {
-      console.log("initData:", tg.initData);
-      tg.ready();
-      try { tg.expand(); } catch (e) { /*ignore*/ }
+    // Отправка
+    const payload = {
+      hotel, category, guests, lastName, firstName, middleName,
+      email, passportSeries, passportNumber, issueDate, issuedBy,
+      phone, comment, checkin, checkout
+    };
 
-      const sendBtn = document.getElementById("sendBtn");
-
-      sendBtn.addEventListener("click", async () => {
-        const data = {
-          ping: "pong",
-          // пример дополнительных полей
-          // hotel: "Альфа",
-          // category: "Стандарт",
-          // firstName: "Иван",
-          // lastName: "Иванов",
-        };
-
-        setStatus("Отправка данных...");
-        console.log("👉 Отправка данных в Telegram:", data);
-
-        try {
-          // sendData доступен только внутри Telegram WebApp
-          if (typeof tg.sendData === "function") {
-            tg.sendData(JSON.stringify(data)); // отправляем в бота
-            setStatus("Данные отправлены. Mini App будет закрыт.");
-            // небольшая задержка, чтобы дать время отправке
-            setTimeout(() => {
-              try { tg.close(); } catch (e) { console.error(e); }
-            }, 300);
-          } else {
-            setStatus("Ошибка: tg.sendData недоступен в этом клиенте.");
-            console.error("tg.sendData is not a function");
-          }
-        } catch (err) {
-          console.error("Ошибка при отправке данных:", err);
-          setStatus("Ошибка при отправке данных: " + err.toString());
-        }
-      });
-
-      // Если приложение открыто не через кнопку бота (например прямой URL),
-      // то initData может быть пустым — предупреждаем пользователя.
-      if (!tg.initData || tg.initData === "") {
-        // только информируем, не прерываем
-        console.warn("Warning: initData is empty (app probably opened not from bot). sendData всё равно может работать, но предпочтительнее открывать из бота.");
-        // показываем это в статусе на UI
-        setStatus("Внимание: приложение возможно открыто не из Telegram-кнопки бота. Проверьте, открывается ли через бота.");
-      }
-    }
-  </script>
+    WebApp.sendData(JSON.stringify(payload));
+    WebApp.close();
+  });
+</script>
 </body>
 </html>
