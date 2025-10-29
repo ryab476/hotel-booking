@@ -1,65 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <meta name="referrer" content="no-referrer-when-downgrade">
-  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <meta charset="utf-8">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <title>Telegram WebApp Debug</title>
 </head>
-<body style="font-family: sans-serif; padding: 20px;">
-
-  <h2>🧩 Telegram Mini App — Диагностика</h2>
-
-  <button id="sendBtn" style="padding: 10px 20px; font-size: 16px;">📨 Отправить данные</button>
-
-  <h3>Статус:</h3>
-  <pre id="status" style="background:#f2f2f2; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
-
-  <h3>initData:</h3>
-  <pre id="initData" style="background:#e8f5e9; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
-
-  <h3>initDataUnsafe:</h3>
-  <pre id="initDataUnsafe" style="background:#fff3e0; padding:10px; border-radius:8px; white-space:pre-wrap;"></pre>
+<body>
+  <h2>Mini App Test</h2>
+  <button id="send">Отправить данные</button>
 
   <script>
     const tg = window.Telegram.WebApp;
     tg.ready();
-    tg.expand();
 
-    const statusBox = document.getElementById("status");
-    const initBox = document.getElementById("initData");
-    const unsafeBox = document.getElementById("initDataUnsafe");
-
-    // Отображаем базовую информацию
-    initBox.textContent = tg.initData || "(пусто)";
-    unsafeBox.textContent = JSON.stringify(tg.initDataUnsafe || {}, null, 2);
-
-    if (tg.initData && tg.initData.length > 0) {
-      statusBox.textContent = "✅ WebApp открыт через Telegram.\nГотов к отправке данных.";
-    } else {
-      statusBox.textContent = "⚠️ Похоже, что WebApp открыт не из Telegram!";
-    }
-
-    // Обработчик кнопки
-    document.getElementById("sendBtn").addEventListener("click", () => {
-      const data = {
-        ping: "pong",
-        time: new Date().toISOString(),
-        user: tg.initDataUnsafe?.user?.username || "неизвестен"
-      };
-
-      console.log("📤 Отправляем:", data);
-      statusBox.textContent += "\n📤 Отправка данных...";
-
-      try {
-        tg.sendData(JSON.stringify(data));
-        statusBox.textContent += "\n✅ Данные отправлены в Telegram (вызван sendData()).";
-        tg.close();
-      } catch (err) {
-        console.error("Ошибка при sendData:", err);
-        statusBox.textContent += "\n❌ Ошибка при sendData(): " + err.message;
-      }
+    document.getElementById("send").addEventListener("click", () => {
+      const data = { ping: "pong" };
+      console.log("Отправляем:", data);
+      tg.sendData(JSON.stringify(data));
+      tg.close();
     });
   </script>
 </body>
