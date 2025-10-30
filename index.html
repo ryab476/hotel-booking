@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Бронирование номера</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --tg-theme-bg-color: #d9f2d9; /* Светло-салатовый фон */
+      --tg-theme-text-color: #000000;
+      --tg-theme-button-color: #3390ec;
+      --tg-theme-button-text-color: #ffffff;
+      --tg-theme-hint-color: #999999;
+      --border-color: #4CAF50; /* Зелёная граница */
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--tg-theme-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    select,
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="date"],
+    input[type="number"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--border-color); /* Зелёная рамка */
+      border-radius: 10px; /* Скруглённые углы */
+      background: var(--tg-theme-bg-color);
+      color: var(--tg-theme-text-color);
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: var(--tg-theme-button-color);
+      color: var(--tg-theme-button-text-color);
+      border: none;
+      border-radius: 10px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .error {
+      color: #ff4444;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .name-row,
+    .passport-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .name-row .form-group,
+    .passport-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏨 Бронирование номера</h1>
+
+    <!-- Выбор гостиницы -->
+    <div class="form-group">
+      <label for="hotel">Гостиница *</label>
+      <select id="hotel" required>
+        <option value="">— Выберите —</option>
+        <option value="Альфа">Альфа</option>
+        <option value="Бета">Бета</option>
+        <option value="Гамма">Гамма</option>
+      </select>
+    </div>
+
+    <!-- Категория -->
+    <div class="form-group">
+      <label for="category">Категория номера *</label>
+      <select id="category" required disabled>
+        <option value="">Сначала выберите гостиницу</option>
+      </select>
+    </div>
+
+    <!-- Количество гостей -->
+    <div class="form-group">
+      <label for="guests">Количество гостей *</label>
+      <input type="number" id="guests" min="1" max="2" value="1" required disabled />
+      <div id="guestsError" class="error"></div>
+    </div>
+
+    <!-- ФИО -->
+    <div class="name-row">
+      <div class="form-group">
+        <label for="lastName">Фамилия *</label>
+        <input type="text" id="lastName" placeholder="Иванов" maxlength="50" required disabled />
+      </div>
+      <div class="form-group">
+        <label for="firstName">Имя *</label>
+        <input type="text" id="firstName" placeholder="Иван" maxlength="50" required disabled />
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="middleName">Отчество (если есть)</label>
+      <input type="text" id="middleName" placeholder="Иванович" maxlength="50" disabled />
+    </div>
+
+    <!-- Email -->
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="ivan@example.com" maxlength="100" disabled />
+    </div>
+
+    <!-- Паспорт -->
+    <div class="passport-row">
+      <div class="form-group">
+        <label for="passportSeries">Серия *</label>
+        <input type="text" id="passportSeries" placeholder="1234" maxlength="4" required disabled />
+      </div>
+      <div class="form-group">
+        <label for="passportNumber">Номер *</label>
+        <input type="text" id="passportNumber" placeholder="567890" maxlength="6" required disabled />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="issueDate">Дата выдачи *</label>
+      <input type="date" id="issueDate" required disabled />
+    </div>
+
+    <div class="form-group">
+      <label for="issuedBy">Кем выдан *</label>
+      <input type="text" id="issuedBy" placeholder="ОВД района, г. Москва" maxlength="200" required disabled />
+    </div>
+
+    <!-- Телефон -->
+    <div class="form-group">
+      <label for="phone">Контактный телефон *</label>
+      <input type="tel" id="phone" placeholder="+7 (999) 123-45-67" required disabled />
+    </div>
+
+    <!-- Комментарий -->
+    <div class="form-group">
+      <label for="comment">Комментарий (по желанию)</label>
+      <textarea id="comment" placeholder="Например: нужна детская кроватка" disabled></textarea>
+    </div>
+
+    <!-- Даты -->
+    <div class="form-group">
+      <label for="checkin">Дата заезда *</label>
+      <input type="date" id="checkin" required disabled />
+    </div>
+
+    <div class="form-group">
+      <label for="checkout">Дата выезда *</label>
+      <input type="date" id="checkout" required disabled />
+      <div id="dateError" class="error"></div>
+    </div>
+
+    <button id="bookBtn" disabled>Забронировать</button>
+  </div>
+
+  <script>
+    const WebApp = window.Telegram.WebApp;
+
+    if (!WebApp) {
+      alert("Telegram WebApp не загружен. Откройте через Telegram.");
+      throw new Error("WebApp not available");
+    }
+
+    WebApp.ready();
+    WebApp.expand();
+
+    // Принудительно задаём цвета, игнорируя тему Telegram
+    document.documentElement.style.setProperty('--tg-theme-bg-color', '#d9f2d9');
+    document.documentElement.style.setProperty('--tg-theme-text-color', '#000000');
+    document.documentElement.style.setProperty('--tg-theme-button-color', '#3390ec');
+    document.documentElement.style.setProperty('--tg-theme-button-text-color', '#ffffff');
+    document.documentElement.style.setProperty('--tg-theme-hint-color', '#999999');
+
+    // Остальной JS без изменений...
+    const HOTELS_CONFIG = {
+      "Альфа": { categories: ["Стандарт", "Люкс"], maxGuests: { "Стандарт": 2, "Люкс": 4 } },
+      "Бета": { categories: ["Стандарт", "Полулюкс", "Люкс"], maxGuests: { "Стандарт": 2, "Полулюкс": 3, "Люкс": 4 } },
+      "Гамма": { categories: ["Стандарт", "Семейный"], maxGuests: { "Стандарт": 2, "Семейный": 4 } }
+    };
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('issueDate').max = today;
+    document.getElementById('checkin').min = today;
+    document.getElementById('checkout').min = today;
+
+    const hotelSelect = document.getElementById('hotel');
+    const categorySelect = document.getElementById('category');
+    const guestsInput = document.getElementById('guests');
+    const formFields = document.querySelectorAll('input:not([type="radio"]), select, textarea');
+    const bookBtn = document.getElementById('bookBtn');
+
+    hotelSelect.addEventListener('change', () => {
+      const hotel = hotelSelect.value;
+      categorySelect.innerHTML = '<option value="">— Выберите —</option>';
+      categorySelect.disabled = !hotel;
+
+      if (hotel && HOTELS_CONFIG[hotel]) {
+        HOTELS_CONFIG[hotel].categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat;
+          opt.textContent = cat;
+          categorySelect.appendChild(opt);
+        });
+        enableFields(true);
+      } else {
+        enableFields(false);
+      }
+    });
+
+    categorySelect.addEventListener('change', () => {
+      const hotel = hotelSelect.value;
+      const category = categorySelect.value;
+      if (hotel && category && HOTELS_CONFIG[hotel]) {
+        const max = HOTELS_CONFIG[hotel].maxGuests[category] || 2;
+        guestsInput.max = max;
+        guestsInput.value = Math.min(guestsInput.value, max);
+      }
+    });
+
+    function enableFields(enable) {
+      formFields.forEach(el => {
+        if (el.id !== 'hotel') el.disabled = !enable;
+      });
+      bookBtn.disabled = !enable;
+    }
+
+    document.getElementById('checkin').addEventListener('change', function () {
+      document.getElementById('checkout').min = this.value || today;
+    });
+
+    document.getElementById('passportSeries').addEventListener('input', function (e) {
+      this.value = this.value.replace(/\D/g, '').slice(0, 4);
+    });
+    document.getElementById('passportNumber').addEventListener('input', function (e) {
+      this.value = this.value.replace(/\D/g, '').slice(0, 6);
+    });
+
+    document.getElementById('phone').addEventListener('input', function (e) {
+      let value = e.target.value.replace(/\D/g, '');
+      if (value.startsWith('8')) value = '7' + value.slice(1);
+      if (!value.startsWith('7')) value = '7' + value;
+      let formatted = '+7';
+      if (value.length > 1) formatted += ' (' + value.slice(1, 4);
+      if (value.length >= 4) formatted += ') ' + value.slice(4, 7);
+      if (value.length >= 7) formatted += '-' + value.slice(7, 9);
+      if (value.length >= 9) formatted += '-' + value.slice(9, 11);
+      e.target.value = formatted;
+    });
+
+    bookBtn.addEventListener('click', () => {
+      const hotel = hotelSelect.value;
+      const category = categorySelect.value;
+      const guests = parseInt(document.getElementById('guests').value);
+      const lastName = document.getElementById('lastName').value.trim();
+      const firstName = document.getElementById('firstName').value.trim();
+      const middleName = document.getElementById('middleName').value.trim() || null;
+      const email = document.getElementById('email').value.trim() || null;
+      const passportSeries = document.getElementById('passportSeries').value;
+      const passportNumber = document.getElementById('passportNumber').value;
+      const issueDate = document.getElementById('issueDate').value;
+      const issuedBy = document.getElementById('issuedBy').value.trim();
+      const phoneRaw = document.getElementById('phone').value.replace(/\D/g, '');
+      const comment = document.getElementById('comment').value.trim() || null;
+      const checkin = document.getElementById('checkin').value;
+      const checkout = document.getElementById('checkout').value;
+
+      const guestsError = document.getElementById('guestsError');
+      const dateError = document.getElementById('dateError');
+      guestsError.textContent = '';
+      dateError.textContent = '';
+
+      if (!hotel) { WebApp.showAlert('Выберите гостиницу'); return; }
+      if (!category) { WebApp.showAlert('Выберите категорию'); return; }
+      if (isNaN(guests) || guests < 1) { guestsError.textContent = 'Укажите количество гостей'; return; }
+      const maxGuests = HOTELS_CONFIG[hotel]?.maxGuests[category] || 2;
+      if (guests > maxGuests) {
+        guestsError.textContent = `Максимум ${maxGuests} гостей для этой категории`;
+        return;
+      }
+      if (!lastName) { WebApp.showAlert('Фамилия обязательна'); return; }
+      if (!firstName) { WebApp.showAlert('Имя обязательно'); return; }
+      if (passportSeries.length !== 4) { WebApp.showAlert('Серия — 4 цифры'); return; }
+      if (passportNumber.length !== 6) { WebApp.showAlert('Номер — 6 цифр'); return; }
+      if (!issueDate) { WebApp.showAlert('Дата выдачи паспорта'); return; }
+      if (!issuedBy) { WebApp.showAlert('Укажите, кем выдан'); return; }
+      if (phoneRaw.length < 11) { WebApp.showAlert('Некорректный телефон'); return; }
+      if (!checkin) { WebApp.showAlert('Дата заезда'); return; }
+      if (!checkout) { WebApp.showAlert('Дата выезда'); return; }
+      if (new Date(checkout) <= new Date(checkin)) {
+        dateError.textContent = 'Выезд должен быть позже заезда';
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        WebApp.showAlert('Некорректный email');
+        return;
+      }
+
+      const payload = {
+        hotel,
+        category,
+        guests,
+        lastName,
+        firstName,
+        middleName,
+        email,
+        passportSeries,
+        passportNumber,
+        issueDate,
+        issuedBy,
+        phone: '+7' + phoneRaw.slice(1),
+        comment,
+        checkin,
+        checkout
+      };
+
+      WebApp.showAlert("Данные сформированы");
+      try {
+        WebApp.sendData(JSON.stringify(payload));
+        WebApp.close();
+      } catch (e) {
+        WebApp.showAlert("Ошибка отправки: " + e.message);
+      }
+    });
+  </script>
+</body>
+</html>
