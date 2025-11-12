@@ -1,5 +1,5 @@
-
 # === МОДУЛЬ MINIAPP === 
+
 from aiogram import F, Router
 from aiogram.types import Message
 from keyboards import get_main_reply_keyboard
