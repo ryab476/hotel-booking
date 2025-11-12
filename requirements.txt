@@ -3,6 +3,6 @@ fastapi
 uvicorn[standard]
 python-dotenv
 psycopg2-binary==2.9.9
-gtts==2.6.0
+gtts==2.5.4
 SpeechRecognition==3.10.0
 pydub==0.25.1
