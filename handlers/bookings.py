@@ -44,7 +44,7 @@ async def my_bookings(message: Message):
         logging.error(f"Error fetching bookings: {e}")
         await message.answer("Ошибка загрузки броней. Попробуйте позже.")
 
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+#from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 # === ОБРАБОТЧИК ОТМЕНЫ БРОНИРОВАНИЯ ===
 @router.callback_query(F.data.startswith("cancel_booking_"))
