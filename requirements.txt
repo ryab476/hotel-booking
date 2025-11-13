@@ -7,5 +7,5 @@ gtts==2.5.4
 SpeechRecognition==3.10.0
 pydub==0.25.1
 pydantic>=2.9.0,<3
-pydantic-core!=2.18.4  # Явно исключаем проблемную версию
+psycopg2-binary>=2.9.9  # Явно исключаем проблемную версию
 asyncpg
