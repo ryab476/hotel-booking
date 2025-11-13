@@ -48,12 +48,12 @@ async def init_db():
             )
         """)
         
-        # Заполнение начальных данных
-        hotels_count = await conn.fetchval("SELECT COUNT(*) FROM hotels")
-        if hotels_count == 0:
-            await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Альфа", "Описание гостиницы Альфа")
-            await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Бетта", "Описание гостиницы Бетта")
-            await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Гамма-Дельта", "Описание гостиницы Гамма-Дельта")
+        # # Заполнение начальных данных
+        # hotels_count = await conn.fetchval("SELECT COUNT(*) FROM hotels")
+        # if hotels_count == 0:
+        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Альфа", "Описание гостиницы Альфа")
+        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Бетта", "Описание гостиницы Бетта")
+        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Гамма-Дельта", "Описание гостиницы Гамма-Дельта")
 
 # === ФУНКЦИИ РАБОТЫ С БАЗОЙ ===
 async def get_all_hotels(sort_by: str = "name", desc: bool = False):

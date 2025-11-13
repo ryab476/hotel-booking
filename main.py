@@ -1,42 +1,37 @@
 import asyncio
 import logging
+import os
+from contextlib import asynccontextmanager
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
-from aiohttp import web
-import os
-from config import BOT_TOKEN  # Убедись, что BOT_TOKEN определён в config
-from database import init_db
+from fastapi import FastAPI
+from config import BOT_TOKEN
+from database import init_db, get_all_hotels, get_room_categories_by_hotel
 
-# Включаем логирование
-logging.basicConfig(level=logging.INFO)
+# === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+bot = None
+dp = None
 
-# URL вебхука для Render
-WEBHOOK_URL = "https://hotel-booking-xxb7.onrender.com"
-WEBHOOK_PATH = "/webhook"  # Путь, по которому Render будет принимать обновления от Telegram
+# === ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global bot, dp
 
-# Порт, который использует Render
-PORT = int(os.getenv("PORT", 10000))
+    print("🚀 Запуск приложения...")
+    await init_db()
 
-# Хост, на котором будет работать сервер (Render требует 0.0.0.0)
-HOST = "0.0.0.0"
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
 
-async def main():
-    await init_db()  # ← Сначала инициализируем БД
-
-    # === ИМПОРТ РОУТЕРОВ (теперь db_pool доступен) ===
+    # === Подключаем роутеры aiogram ===
+    # Обязательно делаем это *после* инициализации dp
     from handlers.start import router as start_router
     from handlers.booking import router as booking_router
     from handlers.hotels import router as hotels_router
     from handlers.bookings import router as bookings_router
     from handlers.admin import router as admin_router
-    from handlers.webapp import router as webapp_router
+    from handlers.webapp import router as webapp_router  # ← Убедитесь, что он подключен
 
-    bot = Bot(token=BOT_TOKEN)
-    storage = MemoryStorage()
-    dp = Dispatcher(storage=storage)
-
-    # === РЕГИСТРАЦИЯ РОУТЕРОВ ===
     dp.include_router(start_router)
     dp.include_router(booking_router)
     dp.include_router(hotels_router)
@@ -44,34 +39,59 @@ async def main():
     dp.include_router(admin_router)
     dp.include_router(webapp_router)
 
-    # Устанавливаем webhook
-    await bot.set_webhook(f"{WEBHOOK_URL}{WEBHOOK_PATH}")
+    # Устанавливаем webhook для бота (Render -> Telegram)
+    webhook_url = f"https://hotel-booking-xxb7.onrender.com/webhook"
+    await bot.set_webhook(webhook_url)
+    print(f"✅ Webhook установлен на {webhook_url}")
 
-    # Настраиваем aiohttp приложение
-    app = web.Application()
-    webhook_requests_handler = SimpleRequestHandler(
-        dispatcher=dp,
-        bot=bot,
-    )
-    webhook_requests_handler.register(app, path=WEBHOOK_PATH)
+    yield  # Работа приложения (FastAPI + aiogram)
 
-    setup_application(app, dp, bot=bot)
+    # Завершение работы
+    await bot.delete_webhook()
+    await bot.session.close()
+    print("🛑 Завершение работы бота...")
 
-    # Запускаем веб-сервер
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, HOST, PORT)
-    await site.start()
+# === FASTAPI ПРИЛОЖЕНИЕ ===
+app = FastAPI(lifespan=lifespan)
 
-    print(f"✅ Webhook установлен на {WEBHOOK_URL}{WEBHOOK_PATH}")
-    print(f"Сервер запущен на {HOST}:{PORT}")
+# === CORS для MiniApp ===
+from fastapi.middleware.cors import CORSMiddleware
 
-    # Ожидаем завершения
-    try:
-        await asyncio.Event().wait()
-    finally:
-        await runner.cleanup()
-        await bot.delete_webhook()  # Удаляем webhook при завершении
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://t.me"],  # ← Разрешаем MiniApp
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# === API МАРШРУТЫ ===
+@app.get("/api/hotels")
+async def get_hotels_api():
+    hotels = await get_all_hotels(sort_by="name", desc=False)
+    return [{"id": h["id"], "name": h["name"]} for h in hotels]
+
+@app.get("/api/hotels/{hotel_id}/categories")
+async def get_categories_api(hotel_id: int):
+    categories = await get_room_categories_by_hotel(hotel_id)
+    return [{"id": c["id"], "name": c["name"], "price": c["price"]} for c in categories]
+
+# === МАРШРУТ ДЛЯ WEBHOOK (Telegram -> Render -> Bot) ===
+@app.post("/webhook")
+async def webhook_handler(update: dict):
+    # Передаём обновление aiogram
+    from aiogram.types import Update
+    update_obj = Update(**update)
+    await dp.feed_raw_update(bot, update_obj)
+    return {"status": "ok"}
+
+# === ТЕСТОВЫЙ МАРШРУТ ===
+@app.get("/")
+async def root():
+    return {"message": "FastAPI + aiogram bot is running on Render!"}
+
+# === ЗАПУСК (только для локального тестирования) ===
 if __name__ == "__main__":
-    asyncio.run(main())
+    import uvicorn
+    port = int(os.getenv("PORT", 10000))  # ← Render использует PORT
+    uvicorn.run(app, host="0.0.0.0", port=port)
