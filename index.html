@@ -109,10 +109,7 @@
     <div class="form-group">
       <label for="hotel_id">Гостиница *</label>
       <select id="hotel_id" required>
-        <option value="">— Выберите —</option>
-        <option value="1" data-name="Альфа">Альфа</option>
-        <option value="2" data-name="Бета">Бета</option>
-        <option value="3" data-name="Гамма">Гамма</option>
+        <option value="">— Загрузка... —</option>
       </select>
     </div>
 
@@ -231,42 +228,74 @@
     const formFields = document.querySelectorAll('input:not([type="radio"]), select, textarea');
     const bookBtn = document.getElementById('bookBtn');
 
+    // === НОВАЯ ЛОГИКА: загрузка данных из БД ===
+    let hotels = [];
+    let categoriesByHotel = {};
+
+    async function loadHotelsAndCategories() {
+      try {
+        // ЗАМЕНИТЕ НА ВАШ URL API
+        const response = await fetch('https://hotel-booking-xxb7.onrender.com/api/hotels-with-categories');
+        hotels = await response.json();
+
+        hotelSelect.innerHTML = '<option value="">— Выберите —</option>';
+        hotels.forEach(hotel => {
+          const opt = document.createElement('option');
+          opt.value = hotel.id;
+          opt.textContent = hotel.name;
+          opt.dataset.categories = JSON.stringify(hotel.categories);
+          hotelSelect.appendChild(opt);
+        });
+      } catch (e) {
+        WebApp.showAlert("Ошибка загрузки данных: " + e.message);
+        console.error("Ошибка загрузки гостиниц и категорий:", e);
+      }
+    }
+
+    // При выборе гостиницы — заполняем категории из кэша
     hotelSelect.addEventListener('change', () => {
       const selectedOption = hotelSelect.selectedOptions[0];
       const categories = selectedOption ? JSON.parse(selectedOption.dataset.categories || '[]') : [];
-  
-      const categorySelect = document.getElementById('room_category_id');
+      
       categorySelect.innerHTML = '<option value="">— Выберите —</option>';
-  
       categories.forEach(cat => {
         const opt = document.createElement('option');
         opt.value = cat.id;
         opt.textContent = `${cat.name} — ${cat.price || 'Цена не указана'}`;
-      categorySelect.appendChild(opt);
-  });
-  
-  categorySelect.disabled = categories.length === 0;
-  
-  // Включаем остальные поля, если выбрана гостиница
-    if (categories.length > 0) {
-      enableFields(true);
-    } else {
-      enableFields(false);
-    }
-  });
-    categorySelect.addEventListener('change', () => {
-      const hotel_id = hotelSelect.value;
-      const room_category_id = categorySelect.value;
-      if (hotel_id && room_category_id && HOTELS_CONFIG[hotel_id]) {
-        const max = HOTELS_CONFIG[hotel_id].maxGuests[room_category_id] || 2;
-        guestsInput.max = max;
-        guestsInput.value = Math.min(guestsInput.value, max);
+        categorySelect.appendChild(opt);
+      });
+      
+      categorySelect.disabled = categories.length === 0;
+
+      // Не разблокируем поля при выборе гостиницы, только при выборе категории
+      if (categories.length === 0) {
+        enableFields(false);
+      } else {
+        // Если уже выбрана категория (например, при переключении гостиницы), оставляем поля активными
+        if (categorySelect.value) {
+          enableFields(true);
+        } else {
+          enableFields(false); // Категория не выбрана
+        }
       }
     });
 
+    // При выборе категории — разблокируем остальные поля
+    categorySelect.addEventListener('change', () => {
+      if (categorySelect.value) {
+        enableFields(true);
+      } else {
+        enableFields(false);
+      }
+    });
+
+    // === ИСПРАВЛЕННАЯ ФУНКЦИЯ enableFields ===
     function enableFields(enable) {
       formFields.forEach(el => {
-        if (el.id !== 'hotel_id') el.disabled = !enable;
+        // Исключаем оба поля — гостиницу и категорию
+        if (el.id !== 'hotel_id' && el.id !== 'room_category_id') {
+          el.disabled = !enable;
+        }
       });
       bookBtn.disabled = !enable;
     }
@@ -334,9 +363,11 @@
         focusField('guests');
         return;
       }
-      const maxGuests = HOTELS_CONFIG[hotel_id]?.maxGuests[room_category_id] || 2;
+      // Убираем зависимость от HOTELS_CONFIG, используем данные из API если нужно
+      // Для примера оставим жёсткое ограничение, но можно динамически подгружать maxGuests из API
+      const maxGuests = 4; // или загрузить из API и хранить в categoriesByHotel[hotel_id][room_category_id].maxGuests
       if (guests > maxGuests) {
-        guestsError.textContent = `Максимум ${maxGuests} гостей для этой категории`;
+        guestsError.textContent = `Максимум ${maxGuests} гостей`;
         focusField('guests');
         return;
       }
@@ -360,8 +391,8 @@
       }
 
       const payload = {
-        hotel_id: parseInt(hotel_id),           // ← ID гостиницы
-        room_category_id: parseInt(room_category_id), // ← ID категории
+        hotel_id: parseInt(hotel_id),
+        room_category_id: parseInt(room_category_id),
         guests,
         lastName,
         firstName,
@@ -386,6 +417,9 @@
         WebApp.showAlert("Ошибка отправки: " + e.message);
       }
     });
+
+    // === ЗАГРУЖАЕМ ДАННЫЕ ПРИ СТАРТЕ ===
+    loadHotelsAndCategories();
   </script>
 </body>
 </html>
