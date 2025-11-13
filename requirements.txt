@@ -7,4 +7,3 @@ gtts==2.5.4
 SpeechRecognition==3.10.0
 pydub==0.25.1
 asyncpg
-numpy
