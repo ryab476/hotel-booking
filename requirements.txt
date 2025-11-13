@@ -6,5 +6,7 @@ psycopg2-binary>=2.9.9
 gtts==2.5.4
 SpeechRecognition==3.10.0
 pydub==0.25.1
-pydantic==2.4.2
-async
+pydantic==2.9.2 # Пример более новой версии
+pydantic-core>=2.23.4 # Пример соответствующей версии core с .whl
+# Убедитесь, что версии pydantic и pydantic-core совместимы между собой
+asyncpg
