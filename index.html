@@ -220,13 +220,6 @@
     document.documentElement.style.setProperty('--tg-theme-button-text-color', '#ffffff');
     document.documentElement.style.setProperty('--tg-theme-hint-color', '#999999');
 
-    // Конфиг с ID
-    const HOTELS_CONFIG = {
-      "1": { name: "Альфа", categories: [{"id": 1, "name": "Стандарт"}, {"id": 2, "name": "Люкс"}], maxGuests: { "Стандарт": 2, "Люкс": 4 } },
-      "2": { name: "Бета", categories: [{"id": 3, "name": "Стандарт"}, {"id": 4, "name": "Полулюкс"}, {"id": 5, "name": "Люкс"}], maxGuests: { "Стандарт": 2, "Полулюкс": 3, "Люкс": 4 } },
-      "3": { name: "Гамма", categories: [{"id": 6, "name": "Стандарт"}, {"id": 7, "name": "Семейный"}], maxGuests: { "Стандарт": 2, "Семейный": 4 } }
-    };
-
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('issueDate').max = today;
     document.getElementById('check_in').min = today;
@@ -239,23 +232,28 @@
     const bookBtn = document.getElementById('bookBtn');
 
     hotelSelect.addEventListener('change', () => {
-      const hotel_id = hotelSelect.value;
+      const selectedOption = hotelSelect.selectedOptions[0];
+      const categories = selectedOption ? JSON.parse(selectedOption.dataset.categories || '[]') : [];
+  
+      const categorySelect = document.getElementById('room_category_id');
       categorySelect.innerHTML = '<option value="">— Выберите —</option>';
-      categorySelect.disabled = !hotel_id;
-
-      if (hotel_id && HOTELS_CONFIG[hotel_id]) {
-        HOTELS_CONFIG[hotel_id].categories.forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat.id;           // ← ID категории
-          opt.textContent = cat.name;   // ← Название категории
-          categorySelect.appendChild(opt);
-        });
-        enableFields(true);
-      } else {
-        enableFields(false);
-      }
-    });
-
+  
+      categories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = `${cat.name} — ${cat.price || 'Цена не указана'}`;
+      categorySelect.appendChild(opt);
+  });
+  
+  categorySelect.disabled = categories.length === 0;
+  
+  // Включаем остальные поля, если выбрана гостиница
+    if (categories.length > 0) {
+      enableFields(true);
+    } else {
+      enableFields(false);
+    }
+  });
     categorySelect.addEventListener('change', () => {
       const hotel_id = hotelSelect.value;
       const room_category_id = categorySelect.value;
