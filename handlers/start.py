@@ -23,7 +23,7 @@ async def cmd_start(message: Message):
         "• 📞 Связаться с админом — получите контакты"
     )
     try:
-        photo = FSInputFile("images\iz_hotel1.jpg")
+        photo = FSInputFile("images/iz_hotel1.jpg")
         await message.answer_photo(photo=photo, caption=caption, parse_mode="Markdown")
     except FileNotFoundError:
         await message.answer("📸 Фото временно недоступно, но гостиницы всё равно прекрасны!\n\n" + caption, parse_mode="Markdown")
