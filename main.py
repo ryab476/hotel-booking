@@ -7,6 +7,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from fastapi import FastAPI
 from config import BOT_TOKEN
 from database import init_db, get_all_hotels, get_room_categories_by_hotel
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import JSONResponse
 
 bot = None
 dp = None
@@ -67,15 +69,29 @@ async def get_hotels_with_categories_api():
         result = []
         for hotel in hotels:
             categories = await get_room_categories_by_hotel(hotel["id"])
-            result.append({
+            hotel_data = {
                 "id": hotel["id"],
                 "name": hotel["name"],
-                "categories": [{"id": c["id"], "name": c["name"], "price": c["price"]} for c in categories]
-            })
-        return result
+                "categories": [
+                    {"id": c["id"], "name": c["name"], "price": c["price"]}
+                    for c in categories
+                ]
+            }
+            result.append(hotel_data)
+
+        # Создаем ответ с CORS-заголовками
+        return JSONResponse(
+            content=result,
+            headers={
+                "Access-Control-Allow-Origin": "https://t.me",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
+
     except Exception as e:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
 
 # === Webhook ===
 @app.post("/webhook")
