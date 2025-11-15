@@ -1,46 +1,123 @@
-# === СТАРТОВЫЙ МОДУЛЬ === 
-
-from aiogram import Router, F
-from aiogram.filters import CommandStart
-from aiogram.types import Message
-from keyboards import get_main_reply_keyboard
-from aiogram import Bot
-from config import BOT_TOKEN
-from aiogram.types import FSInputFile
+import asyncio
 import logging
 import os
+from contextlib import asynccontextmanager
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.memory import MemoryStorage
+from fastapi import FastAPI
+from config import BOT_TOKEN # Убедись, что это НЕ запускает polling
+from database import init_db, get_all_hotels, get_room_categories_by_hotel
 
-router = Router()
-bot = Bot(token=BOT_TOKEN)
+# === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+bot = None
+dp = None
 
-@router.message(CommandStart())
-async def cmd_start(message: Message):
-    caption = (
-        "🌟 Добро пожаловать в ГК «Измайлово»!\n\n"
-        "Выберите действие:\n"
-        "• 🏨 Выбрать гостиницу — посмотрите доступные номера\n"
-        "• 📅 Забронировать — заполните данные в мини-приложении\n"
-        "• 📤 Отправить заявку — отправьте запрос администратору\n"
-        "• 🎫 Мои брони — просмотрите историю заявок\n"
-        "• 📞 Связаться с админом — получите контакты"
-    )
-    image_path = "images/iz_hotel1.jpg"  # Используем Unix-путь
+# === ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global bot, dp
 
-    # Проверяем файл перед отправкой
-    if os.path.exists(image_path):
-        try:
-            photo = FSInputFile(image_path)
-            await message.answer_photo(photo=photo, caption=caption, parse_mode="Markdown")
-        except Exception as e: # Перехватываем любую ошибку при отправке фото
-            # Если фото есть, но отправить не удалось (например, сеть, Telegram API)
-            logging.error(f"Ошибка при отправке фото: {e}")
-            await message.answer("📸 Ошибка загрузки фото, но гостиницы всё равно прекрасны!\n\n" + caption, parse_mode="Markdown")
-    else:
-        # Файл не найден
-        await message.answer("📸 Фото временно недоступно, но гостиницы всё равно прекрасны!\n\n" + caption, parse_mode="Markdown")
+    print("🚀 Запуск приложения...")
+    await init_db()
 
-    await message.answer("Выберите действие:", reply_markup=get_main_reply_keyboard)
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
 
-# Возвращаем роутер
-def setup_router():
-    return router
+    # === Подключаем роутеры aiogram ===
+    from handlers.start import router as start_router
+    from handlers.booking import router as booking_router
+    from handlers.hotels import router as hotels_router
+    from handlers.bookings import router as bookings_router
+    from handlers.admin import router as admin_router
+    from handlers.webapp import router as webapp_router
+
+    dp.include_router(start_router)
+    dp.include_router(booking_router)
+    dp.include_router(hotels_router)
+    dp.include_router(bookings_router)
+    dp.include_router(admin_router)
+    dp.include_router(webapp_router)
+
+    # Устанавливаем webhook для бота (Render -> Telegram)
+    webhook_url = f"https://hotel-booking-xxb7.onrender.com/webhook"
+    await bot.set_webhook(webhook_url)
+    print(f"✅ Webhook установлен на {webhook_url}")
+
+    print("✅ aiogram Dispatcher и Bot инициализированы, webhook установлен.")
+    yield  # <-- FastAPI начинает обслуживание запросов здесь.
+
+    # Завершение работы
+    await bot.delete_webhook()
+    await bot.session.close()
+    print("🛑 Завершение работы бота...")
+
+# === FASTAPI ПРИЛОЖЕНИЕ ===
+app = FastAPI(lifespan=lifespan)
+
+# === CORS для MiniApp ===
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://t.me",
+        "https://web.telegram.org"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# === API МАРШРУТЫ ===
+@app.get("/api/hotels")
+async def get_hotels_api():
+    hotels = await get_all_hotels(sort_by="name", desc=False)
+    return [{"id": h["id"], "name": h["name"]} for h in hotels]
+
+@app.get("/api/hotels/{hotel_id}/categories")
+async def get_categories_api(hotel_id: int):
+    categories = await get_room_categories_by_hotel(hotel_id)
+    return [{"id": c["id"], "name": c["name"], "price": c["price"]} for c in categories]
+
+@app.get("/api/hotels-with-categories")
+async def get_hotels_with_categories_api():
+    try:
+        hotels = await get_all_hotels(sort_by="name", desc=False)
+        result = []
+        for hotel in hotels:
+            categories = await get_room_categories_by_hotel(hotel["id"])
+            hotel_data = {
+                "id": hotel["id"],
+                "name": hotel["name"],
+                "categories": [
+                    {"id": c["id"], "name": c["name"], "price": c["price"]}
+                    for c in categories
+                ]
+            }
+            result.append(hotel_data)
+
+        return result
+
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
+
+# === МАРШРУТ ДЛЯ WEBHOOK (Telegram -> Render -> Bot) ===
+@app.post("/webhook")
+async def webhook_handler(update: dict):
+    # Передаём обновление aiogram
+    from aiogram.types import Update
+    update_obj = Update(**update)
+    await dp.feed_raw_update(bot, update_obj)
+    return {"status": "ok"}
+
+# === ТЕСТОВЫЙ МАРШРУТ ===
+@app.get("/")
+async def root():
+    return {"message": "FastAPI + aiogram bot is running on Render!"}
+
+# === ЗАПУСК (только для локального тестирования) ===
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 10000))  # ← Render использует PORT
+    uvicorn.run(app, host="0.0.0.0", port=port)
