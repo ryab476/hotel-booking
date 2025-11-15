@@ -22,11 +22,11 @@ async def cmd_start(message: Message):
         "• 🎫 Мои брони — просмотрите историю заявок\n"
         "• 📞 Связаться с админом — получите контакты"
     )
-    try:
-        photo = FSInputFile("images\iz_hotel1.jpg")
-        await message.answer_photo(photo=photo, caption=caption, parse_mode="Markdown")
-    except FileNotFoundError:
-        await message.answer("📸 Фото временно недоступно, но гостиницы всё равно прекрасны!\n\n" + caption, parse_mode="Markdown")
+    # try:
+    #      photo = FSInputFile("images\iz_hotel1.jpg")
+    #      await message.answer_photo(photo=photo, caption=caption, parse_mode="Markdown")
+    # except FileNotFoundError:
+    #      await message.answer("📸 Фото временно недоступно, но гостиницы всё равно прекрасны!\n\n" + caption, parse_mode="Markdown")
 
     await message.answer("Выберите действие:", reply_markup=get_main_reply_keyboard)
 
