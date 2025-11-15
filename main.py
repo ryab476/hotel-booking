@@ -33,6 +33,7 @@ async def error_handler(event: ErrorEvent):
     logging.error(f"Произошла ошибка внутри обработчика aiogram: {event.exception}")
 
 # === УПРОЩЁННЫЙ ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
+# === УПРОЩЁННЫЙ ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot, dp
@@ -69,15 +70,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         # Логируем любую ошибку, которая происходит ВНУТРИ lifespan
         logging.error(f"Ошибка в lifespan: {e}")
-        # Не вызываем raise, чтобы не уронить процесс раньше времени, если возможно.
-        # Но в данном случае, если set_webhook не проходит, приложение бесполезно.
         raise e # Лучше упасть с ясной ошибкой
 
     finally:
         # Очистка
         if bot:
             await bot.delete_webhook()
-            await bot.session.close()
+            # await bot.session.close() # <-- УБРАНО
         print("🛑 Завершение работы бота...")
 
 app = FastAPI(lifespan=lifespan)
