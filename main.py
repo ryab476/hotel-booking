@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from config import BOT_TOKEN
 from database import init_db, get_all_hotels, get_room_categories_by_hotel
 
@@ -24,7 +24,6 @@ async def lifespan(app: FastAPI):
     dp = Dispatcher(storage=MemoryStorage())
 
     # === Подключаем роутеры aiogram ===
-    # Обязательно делаем это *после* инициализации dp
     from handlers.start import router as start_router
     from handlers.booking import router as booking_router
     from handlers.hotels import router as hotels_router
@@ -66,6 +65,8 @@ app.add_middleware(
 )
 
 # === API МАРШРУТЫ ===
+
+# --- Существующие маршруты ---
 @app.get("/api/hotels")
 async def get_hotels_api():
     hotels = await get_all_hotels(sort_by="name", desc=False)
@@ -75,6 +76,33 @@ async def get_hotels_api():
 async def get_categories_api(hotel_id: int):
     categories = await get_room_categories_by_hotel(hotel_id)
     return [{"id": c["id"], "name": c["name"], "price": c["price"]} for c in categories]
+
+# --- НОВЫЙ МАРШРУТ: /api/hotels-with-categories ---
+@app.get("/api/hotels-with-categories")
+async def get_hotels_with_categories_api():
+    try:
+        # Получаем все гостиницы
+        hotels = await get_all_hotels(sort_by="name", desc=False)
+
+        # Для каждой гостиницы получаем её категории
+        result = []
+        for hotel in hotels:
+            categories = await get_room_categories_by_hotel(hotel["id"])
+            # Формируем объект с гостиницей и её категориями
+            hotel_data = {
+                "id": hotel["id"],
+                "name": hotel["name"],
+                "categories": [
+                    {"id": c["id"], "name": c["name"], "price": c["price"]}
+                    for c in categories
+                ]
+            }
+            result.append(hotel_data)
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
 
 # === МАРШРУТ ДЛЯ WEBHOOK (Telegram -> Render -> Bot) ===
 @app.post("/webhook")
