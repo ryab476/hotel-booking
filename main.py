@@ -7,6 +7,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from fastapi import FastAPI, HTTPException
 from config import BOT_TOKEN
 from database import init_db, get_all_hotels, get_room_categories_by_hotel
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
 bot = None
@@ -53,17 +55,16 @@ async def lifespan(app: FastAPI):
 # === FASTAPI ПРИЛОЖЕНИЕ ===
 app = FastAPI(lifespan=lifespan)
 
-# === CORS для MiniApp ===
-from fastapi.middleware.cors import CORSMiddleware
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://t.me"],  # ← Разрешаем MiniApp
+    allow_origins=[
+        "https://t.me",           # ← Основной домен Telegram MiniApp
+        "https://web.telegram.org" # ← Для веб-версии Telegram
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],          # Разрешаем все методы (GET, POST и т.д.)
+    allow_headers=["*"],          # Разрешаем все заголовки
 )
-
 # === API МАРШРУТЫ ===
 
 # --- Существующие маршруты ---
