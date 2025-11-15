@@ -1,15 +1,16 @@
 import asyncio
 import logging
 import os
+import decimal # Импортируем decimal
 from contextlib import asynccontextmanager
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from config import BOT_TOKEN
 from database import init_db, get_all_hotels, get_room_categories_by_hotel
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import JSONResponse
 
+# === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
 bot = None
 dp = None
 
@@ -21,6 +22,17 @@ from handlers.bookings import router as bookings_router
 from handlers.admin import router as admin_router
 from handlers.webapp import router as webapp_router
 
+# === ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК AIORAM ===
+from aiogram import Router
+from aiogram.types import ErrorEvent
+
+error_router = Router()
+
+@error_router.errors()
+async def error_handler(event: ErrorEvent):
+    logging.error(f"Произошла ошибка внутри обработчика aiogram: {event.exception}")
+
+# === ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global bot, dp
@@ -37,6 +49,8 @@ async def lifespan(app: FastAPI):
     dp.include_router(bookings_router)
     dp.include_router(admin_router)
     dp.include_router(webapp_router)
+    # Подключаем роутер с обработчиком ошибок
+    dp.include_router(error_router)
 
     # Устанавливаем вебхук
     webhook_url = f"https://hotel-booking-xxb7.onrender.com/webhook"
@@ -96,10 +110,8 @@ async def get_hotels_with_categories_api():
         )
 
     except Exception as e:
-        # Лучше логировать ошибку
-        import logging
+        # Логируем ошибку
         logging.error(f"Ошибка в /api/hotels-with-categories: {e}")
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
 
 # === Webhook ===
