@@ -73,7 +73,12 @@ async def get_hotels_with_categories_api():
                 "id": hotel["id"],
                 "name": hotel["name"],
                 "categories": [
-                    {"id": c["id"], "name": c["name"], "price": c["price"]}
+                    {
+                        "id": c["id"],
+                        "name": c["name"],
+                        # Преобразуем Decimal в int или float перед включением в JSON
+                        "price": float(c["price"]) if isinstance(c["price"], (decimal.Decimal, float)) else c["price"]
+                    }
                     for c in categories
                 ]
             }
@@ -91,6 +96,10 @@ async def get_hotels_with_categories_api():
         )
 
     except Exception as e:
+        # Лучше логировать ошибку
+        import logging
+        logging.error(f"Ошибка в /api/hotels-with-categories: {e}")
+        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
 
 # === Webhook ===
