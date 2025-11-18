@@ -5,14 +5,17 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from keyboards import get_main_reply_keyboard
-from database import get_all_hotels, get_hotel_by_id, get_room_categories_by_hotel, get_room_category_by_id, create_booking, db_pool
+# УБРАНО: from database import get_all_hotels, get_hotel_by_id, get_room_categories_by_hotel, get_room_category_by_id, create_booking, db_pool
+# ОСТАВЛЕНО: только нужные функции, db_pool НЕ импортируем
+from database import get_all_hotels, get_hotel_by_id, get_room_categories_by_hotel, get_room_category_by_id, create_booking, has_overlapping_booking
+# Добавляем функции, которые теперь используются
+from database import get_hotel_id_by_name, get_room_category_id_by_hotel_and_name
 from config import ADMIN_CHAT_ID
 import re
 from datetime import datetime
 from aiogram import Bot
 from config import BOT_TOKEN
 import logging
-from database import has_overlapping_booking
 
 router = Router()
 bot = Bot(token=BOT_TOKEN)
@@ -54,14 +57,13 @@ async def cancel_booking(message: Message, state: FSMContext):
 async def choose_hotel(message: Message, state: FSMContext):
     hotel_name = message.text
     
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT id FROM hotels WHERE name = $1", hotel_name)
+    # ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ DATABASE, А НЕ ПРЯМОЙ ПУЛ
+    hotel_id = await get_hotel_id_by_name(hotel_name)
     
-    if not row:
+    if hotel_id is None:
         await message.answer("❌ Гостиница не найдена. Попробуйте снова.")
         return
     
-    hotel_id = row["id"]
     await state.update_data(hotel_id=hotel_id)
     
     room_categories = await get_room_categories_by_hotel(hotel_id)
@@ -90,17 +92,13 @@ async def choose_room_category(message: Message, state: FSMContext):
     data = await state.get_data()
     hotel_id = data["hotel_id"]
     
-    async with db_pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "SELECT id FROM room_categories WHERE hotel_id = $1 AND name = $2",
-            hotel_id, room_name
-        )
+    # ИСПОЛЬЗУЕМ ФУНКЦИЮ ИЗ DATABASE, А НЕ ПРЯМОЙ ПУЛ
+    room_category_id = await get_room_category_id_by_hotel_and_name(hotel_id, room_name)
     
-    if not row:
+    if room_category_id is None:
         await message.answer("❌ Категория номера не найдена. Попробуйте снова.")
         return
     
-    room_category_id = row["id"]
     await state.update_data(room_category_id=room_category_id)
     
     await message.answer(

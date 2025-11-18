@@ -103,7 +103,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>🏨 Бронирование номера</h1>
+    <h1>🏨 Бронирование номера\n(GitHub)</h1>
 
     <!-- Выбор гостиницы -->
     <div class="form-group">
@@ -235,7 +235,7 @@
     async function loadHotelsAndCategories() {
       try {
         // ЗАМЕНИТЕ НА ВАШ URL API
-        const response = await fetch('https://hotel-booking-xxb7.onrender.com/api/hotels-with-categories');
+        const response = await fetch('http://localhost:8000/api/hotels-with-categories');
         hotels = await response.json();
 
         hotelSelect.innerHTML = '<option value="">— Выберите —</option>';

@@ -4,18 +4,25 @@ import asyncpg
 from config import DATABASE_URL
 from datetime import date
 from typing import List, Dict, Any
+import logging # Добавим логирование в database.py
 
+# db_pool = None
+# Используем глобальную переменную, но добавим логирование
 db_pool = None
 
 async def init_db():
     global db_pool
+    logging.info("database.py: init_db вызвана, пытаюсь создать пул.")
     try:
         db_pool = await asyncpg.create_pool(DATABASE_URL)
-        print("✅ Успешное подключение к PostgreSQL")
+        logging.info("database.py: Успешное подключение к PostgreSQL, пул создан.")
+        print("✅ Успешное подключение к PostgreSQL") # Оставим и print
     except Exception as e:
+        logging.error(f"database.py: Ошибка подключения к БД: {e}")
         print(f"❌ Ошибка подключения к БД: {e}")
         raise
 
+    logging.info("database.py: Создаю таблицы.")
     async with db_pool.acquire() as conn:
         # Создание таблиц
         await conn.execute("""
@@ -47,16 +54,35 @@ async def init_db():
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        
-        # # Заполнение начальных данных
-        # hotels_count = await conn.fetchval("SELECT COUNT(*) FROM hotels")
-        # if hotels_count == 0:
-        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Альфа", "Описание гостиницы Альфа")
-        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Бетта", "Описание гостиницы Бетта")
-        #     await conn.execute("INSERT INTO hotels (name, description) VALUES ($1, $2)", "Гамма-Дельта", "Описание гостиницы Гамма-Дельта")
+    logging.info("database.py: Таблицы созданы.")
 
 # === ФУНКЦИИ РАБОТЫ С БАЗОЙ ===
+# Обернём каждую функцию в проверку db_pool
+async def _ensure_pool():
+    if db_pool is None:
+        logging.error("database.py: ОШИБКА: db_pool is None при попытке acquire!")
+        raise RuntimeError("База данных не инициализирована (db_pool is None)")
+    return db_pool
+
+# НОВАЯ ФУНКЦИЯ: Получить ID отеля по имени
+async def get_hotel_id_by_name(name: str):
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT id FROM hotels WHERE name = $1", name)
+        return row["id"] if row else None
+
+# НОВАЯ ФУНКЦИЯ: Получить ID категории номера по ID отеля и имени
+async def get_room_category_id_by_hotel_and_name(hotel_id: int, name: str):
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id FROM room_categories WHERE hotel_id = $1 AND name = $2",
+            hotel_id, name
+        )
+        return row["id"] if row else None
+
 async def get_all_hotels(sort_by: str = "name", desc: bool = False):
+    pool = await _ensure_pool()
     order = "DESC" if desc else "ASC"
     valid_sort_fields = {
         "name": "name",
@@ -64,7 +90,7 @@ async def get_all_hotels(sort_by: str = "name", desc: bool = False):
     }
     order_field = valid_sort_fields.get(sort_by, "name")
 
-    async with db_pool.acquire() as conn:
+    async with pool.acquire() as conn:
         rows = await conn.fetch(
             f"SELECT id, name, description, address FROM hotels ORDER BY {order_field} {order}"
         )
@@ -79,23 +105,27 @@ async def get_all_hotels(sort_by: str = "name", desc: bool = False):
         ]
 
 async def get_hotel_by_id(hotel_id: int):
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT id, name, description FROM hotels WHERE id = $1", hotel_id)
         return {"id": row["id"], "name": row["name"], "description": row["description"]} if row else None
 
 async def get_room_categories_by_hotel(hotel_id: int):
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT id, name, description, price FROM room_categories WHERE hotel_id = $1", hotel_id)
         return [{"id": r["id"], "name": r["name"], "description": r["description"], "price": r["price"]} for r in rows]
 
 async def get_room_category_by_id(category_id: int):
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         row = await conn.fetchrow("SELECT id, name, description, price FROM room_categories WHERE id = $1", category_id)
         return {"id": row["id"], "name": row["name"], "description": row["description"], "price": row["price"]} if row else None
 
 async def get_user_bookings(telegram_id: int):
     """Получить активные (неотменённые) бронирования пользователя"""
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT b.id, h.name as hotel_name, rc.name as room_category, 
                    b.check_in, b.check_out, b.status
@@ -115,10 +145,11 @@ async def get_user_bookings(telegram_id: int):
         } for r in rows]
 
 async def create_booking(telegram_id: int, hotel_id: int, room_category_id: int, check_in: str, check_out: str):
+    pool = await _ensure_pool()
     check_in_date = date.fromisoformat(check_in)
     check_out_date = date.fromisoformat(check_out)
     
-    async with db_pool.acquire() as conn:
+    async with pool.acquire() as conn:
         await conn.execute("""
             INSERT INTO bookings (telegram_id, hotel_id, room_category_id, check_in, check_out)
             VALUES ($1, $2, $3, $4, $5)
@@ -126,10 +157,11 @@ async def create_booking(telegram_id: int, hotel_id: int, room_category_id: int,
 
 async def has_overlapping_booking(telegram_id: int, new_check_in: str, new_check_out: str):
     """Проверяет, есть ли у пользователя бронирования, пересекающиеся с новыми датами"""
+    pool = await _ensure_pool()
     new_check_in_date = date.fromisoformat(new_check_in)
     new_check_out_date = date.fromisoformat(new_check_out)
     
-    async with db_pool.acquire() as conn:
+    async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT check_in, check_out FROM bookings WHERE telegram_id = $1 AND status != 'cancelled'",
             telegram_id
@@ -147,7 +179,8 @@ async def has_overlapping_booking(telegram_id: int, new_check_in: str, new_check
 
 async def get_user_booking_by_id(booking_id: int, telegram_id: int):
     """Получить конкретное бронирование пользователя по ID"""
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT b.id, h.name as hotel_name, rc.name as room_category, 
                    b.check_in, b.check_out, b.status
@@ -161,28 +194,9 @@ async def get_user_booking_by_id(booking_id: int, telegram_id: int):
 
 async def update_booking_status(booking_id: int, status: str):
     """Обновить статус бронирования"""
-    async with db_pool.acquire() as conn:
+    pool = await _ensure_pool()
+    async with pool.acquire() as conn:
         await conn.execute(
             "UPDATE bookings SET status = $1 WHERE id = $2",
             status, booking_id
         )   
-
-async def has_overlapping_booking(telegram_id: int, new_check_in: str, new_check_out: str):
-    """Проверяет, есть ли у пользователя бронирования, пересекающиеся с новыми датами"""
-    new_check_in_date = date.fromisoformat(new_check_in)
-    new_check_out_date = date.fromisoformat(new_check_out)
-    
-    async with db_pool.acquire() as conn:
-        rows = await conn.fetch(
-            "SELECT check_in, check_out FROM bookings WHERE telegram_id = $1 AND status != 'cancelled'",
-            telegram_id
-        )
-        
-        for row in rows:
-            existing_check_in = row["check_in"]
-            existing_check_out = row["check_out"]
-            
-            # Пересечение: новый заезд < выезда_существующего И выезд_новый > заезда_существующего
-            if new_check_in_date < existing_check_out and new_check_out_date > existing_check_in:
-                return True  # Найдено пересечение
-    return False            

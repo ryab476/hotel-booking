@@ -2,7 +2,7 @@
 
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from database import get_user_bookings, get_user_booking_by_id, update_booking_status, get_user_bookings
+from database import get_user_bookings, get_user_booking_by_id, update_booking_status
 from config import ADMIN_CHAT_ID
 import logging
 from aiogram import Bot
@@ -43,8 +43,6 @@ async def my_bookings(message: Message):
     except Exception as e:
         logging.error(f"Error fetching bookings: {e}")
         await message.answer("Ошибка загрузки броней. Попробуйте позже.")
-
-#from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 
 # === ОБРАБОТЧИК ОТМЕНЫ БРОНИРОВАНИЯ ===
 @router.callback_query(F.data.startswith("cancel_booking_"))
@@ -88,4 +86,4 @@ async def cancel_booking_handler(callback: CallbackQuery):
     except Exception as e:
         logging.error(f"Ошибка отправки администратору при отмене: {e}")
     
-    await callback.answer()        
+    await callback.answer()

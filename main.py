@@ -1,20 +1,21 @@
-import asyncio
+# import asyncio # Закомментировано, так как не используется
 import logging
 import os
-import decimal # Импортируем decimal
-from contextlib import asynccontextmanager
+#import decimal 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
-from config import BOT_TOKEN # Убедись, что это НЕ запускает polling или webhook напрямую
-from database import init_db, get_all_hotels, get_room_categories_by_hotel
+from config import BOT_TOKEN 
+from database import init_db
+# Простой middleware для логирования обновлений (опционально)
+from aiogram import BaseMiddleware
+from aiogram.types import Message, CallbackQuery
+from typing import Callable, Dict, Any
+import logging
 
-# === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
-bot = None
-dp = None
+# === НАСТРОЙКА ЛОГИРОВАНИЯ ===
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# === ИМПОРТИРУЕМ РОУТЕРЫ НА УРОВНЕ МОДУЛЯ ===
+# === ИМПОРТИРУЕМ РОУТЕРЫ НА УРОВНЕ МОДУЛЯ (но пока не подключаем) ===
 from handlers.start import router as start_router
 from handlers.booking import router as booking_router
 from handlers.hotels import router as hotels_router
@@ -32,122 +33,76 @@ error_router = Router()
 async def error_handler(event: ErrorEvent):
     logging.error(f"Произошла ошибка внутри обработчика aiogram: {event.exception}")
 
-# === УПРОЩЁННЫЙ ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
-# === УПРОЩЁННЫЙ ЖИЗНЕННЫЙ ЦИКЛ ПРИЛОЖЕНИЯ (lifespan) ===
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global bot, dp
-    print("🚀 Запуск приложения...")
+async def main():
+    # Проверяем переменную окружения PROD, по умолчанию считаем, что режим - development (polling)
+    prod_mode = os.getenv("PROD", "false").lower() == "true"
+    print(f"🔄 Режим запуска: {'Production (webhook)' if prod_mode else 'Development (polling)'}")
 
-    try:
-        # Инициализация БД
-        await init_db()
-        print("✅ База данных инициализирована.")
+    if prod_mode:
+        print("❌ Этот режим (PROD) не реализован в этом упрощенном скрипте.")
+        print("   Для PROD используйте запуск через uvicorn напрямую с установленным PROD=true.")
+        return
 
-        # Создание бота и диспетчера
-        bot = Bot(token=BOT_TOKEN)
-        dp = Dispatcher(storage=MemoryStorage())
-        print("✅ Bot и Dispatcher созданы.")
+    print("🚀 Запуск приложения (Development - только бот)...")
 
-        # Подключаем роутеры
-        dp.include_router(start_router)
-        dp.include_router(booking_router)
-        dp.include_router(hotels_router)
-        dp.include_router(bookings_router)
-        dp.include_router(admin_router)
-        dp.include_router(webapp_router)
-        dp.include_router(error_router) # Подключаем роутер с обработчиком ошибок
-        print("✅ Роутеры подключены.")
+    # Инициализация БД
+    await init_db()
+    print("✅ База данных инициализирована.")
 
-        # Устанавливаем вебхук
-        webhook_url = f"https://hotel-booking-xxb7.onrender.com/webhook"
-        await bot.set_webhook(webhook_url)
-        print(f"✅ Webhook установлен на {webhook_url}")
+    # Создание бота и диспетчера
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
+    print("✅ Bot и Dispatcher созданы.")
 
-        print("✅ aiogram Dispatcher и Bot инициализированы, webhook установлен.")
-        yield  # <-- FastAPI начинает обслуживание запросов здесь.
+    # Удаляем webhook, чтобы избежать конфликта при polling
+    await bot.delete_webhook(drop_pending_updates=True) # drop_pending_updates=True очищает очередь обновлений, пришедших на webhook
+    print("🧹 Webhook удален, готов к polling.")
 
-    except Exception as e:
-        # Логируем любую ошибку, которая происходит ВНУТРИ lifespan
-        logging.error(f"Ошибка в lifespan: {e}")
-        raise e # Лучше упасть с ясной ошибкой
+    # Подключаем роутеры
+    dp.include_router(start_router)
+    dp.include_router(booking_router)
+    dp.include_router(hotels_router)
+    dp.include_router(bookings_router)
+    dp.include_router(admin_router)
+    dp.include_router(webapp_router)
+    dp.include_router(error_router) # Подключаем роутер с обработчиком ошибок
+    print("✅ Роутеры подключены.")
 
-    finally:
-        # Очистка
-        if bot:
-            await bot.delete_webhook()
-            # await bot.session.close() # <-- УБРАНО
-        print("🛑 Завершение работы бота...")
+    class LogUpdatesMiddleware(BaseMiddleware):
+        async def __call__(
+            self,
+            handler: Callable,
+            event: object,
+            data: Dict[str, Any]  
+        ) -> Any:
+                # Пытаемся определить тип события и user_id более явно
+                event_type = type(event).__name__ # Получаем имя класса события
+                user_id = "unknown_user"
+                if hasattr(event, 'from_user') and event.from_user:
+                    user_id = event.from_user.id
+                elif hasattr(event, 'message') and event.message and event.message.from_user:
+                     user_id = event.message.from_user.id
+                elif hasattr(event, 'callback_query') and event.callback_query and event.callback_query.from_user:
+                     user_id = event.callback_query.from_user.id
+                # Можно добавить другие типы, если нужно
+                
+                #logging.info(f"Получено обновление (Middleware): {event_type}, от user_id: {user_id}, сам event: {event}")
+                return await handler(event, data)
 
-app = FastAPI(lifespan=lifespan)
+    # Добавляем middleware к диспетчеру
+    dp.update.middleware(LogUpdatesMiddleware())
 
-# === CORS ===
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://t.me", "https://web.telegram.org"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # Добавим лог в main.py после инициализации
+    from database import db_pool
+    if db_pool is None:
+        logging.error("main.py: db_pool всё ещё None после init_db!")
+    else:
+        logging.info(f"main.py: db_pool инициализирован, тип: {type(db_pool)}")
 
-# === API МАРШРУТЫ ===
-@app.get("/api/hotels-with-categories")
-async def get_hotels_with_categories_api():
-    try:
-        hotels = await get_all_hotels(sort_by="name", desc=False)
-        result = []
-        for hotel in hotels:
-            categories = await get_room_categories_by_hotel(hotel["id"])
-            hotel_data = {
-                "id": hotel["id"],
-                "name": hotel["name"],
-                "categories": [
-                    {
-                        "id": c["id"],
-                        "name": c["name"],
-                        # Преобразуем Decimal в int или float перед включением в JSON
-                        "price": float(c["price"]) if isinstance(c["price"], (decimal.Decimal, float)) else c["price"]
-                    }
-                    for c in categories
-                ]
-            }
-            result.append(hotel_data)
+    print("🤖 Запуск aiogram polling...")
+    # Запускаем polling. Это блокирующая операция.
+    await dp.start_polling(bot)
 
-        # Создаем ответ с CORS-заголовками
-        return JSONResponse(
-            content=result,
-            headers={
-                "Access-Control-Allow-Origin": "https://t.me",
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "*"
-            }
-        )
-
-    except Exception as e:
-        # Логируем ошибку
-        logging.error(f"Ошибка в /api/hotels-with-categories: {e}")
-        raise HTTPException(status_code=500, detail=f"Ошибка загрузки данных: {str(e)}")
-
-# === Webhook ===
-@app.post("/webhook")
-async def webhook_handler(update: dict):
-    global dp, bot
-    if dp is None or bot is None:
-        logging.error("Dispatcher или Bot не инициализированы при получении вебхука!")
-        return {"status": "error", "reason": "Not initialized"}
-    from aiogram.types import Update
-    update_obj = Update(**update)
-    await dp.feed_raw_update(bot, update_obj)
-    return {"status": "ok"}
-
-@app.get("/")
-async def root():
-    return {"message": "Running!"}
-
-# Это блок только для ЛОКАЛЬНОГО запуска
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    import asyncio
+    asyncio.run(main())
