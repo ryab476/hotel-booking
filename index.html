@@ -103,7 +103,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>🏨 Бронирование номера<br>(GitHub)</h1>
+    <h1>🏨 Бронирование номера<br>(Localhost)</h1>
 
     <!-- Выбор гостиницы -->
     <div class="form-group">
@@ -235,8 +235,8 @@
     async function loadHotelsAndCategories() {
       try {
         // ЗАМЕНИТЕ НА ВАШ URL API
-        const response = await fetch('http://localhost:8000/api/hotels-with-categories');
-        hotels = await response.json();
+        const response = await fetch('');
+        hotels = await response.json();http://localhost:8000/api/hotels-with-categories
 
         hotelSelect.innerHTML = '<option value="">— Выберите —</option>';
         hotels.forEach(hotel => {

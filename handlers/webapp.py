@@ -73,6 +73,29 @@ async def handle_webapp_data(message: Message):
         )
         await message.answer(caption, parse_mode="Markdown", reply_markup=get_main_reply_keyboard)
         
+        admin_message = (
+        "🚨 <b>НОВАЯ ЗАЯВКА НА БРОНИРОВАНИЕ</b>\n\n"
+        f"👤 Пользователь: @{user.username or 'не указан'} (ID: {user.id})\n"
+        f"📞 Телефон: {getattr(user, 'phone_number', 'не указан') or 'не указан'}\n"
+        f"🏨 Гостиница: {hotel_info['name']}\n"
+        f"🛏️ Категория: {room_info['name']}\n"
+        f"📅 Даты: {data['check_in']} — {data['check_out']}\n\n"
+        "❗ Свяжитесь с клиентом для подтверждения."
+    )
+    
+        try:
+            await bot.send_message(ADMIN_CHAT_ID, admin_message, parse_mode="HTML")
+        except Exception as e:
+            logging.error(f"Ошибка отправки администратору: {e}")
+    
+        await message.answer(
+            "✅ *Заявка успешно отправлена администратору!*\n\n"
+            "Ожидайте подтверждения в течение 24 часов.\n\n"
+            "Вы можете посмотреть свои заявки в разделе «🎫 Мои брони».",
+            reply_markup=get_main_reply_keyboard,
+            parse_mode="Markdown"
+        )
+    
     except json.JSONDecodeError:
         await message.answer("❌ Ошибка разбора данных из формы.")
     except ValueError as e:

@@ -5,10 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from keyboards import get_main_reply_keyboard
-# УБРАНО: from database import get_all_hotels, get_hotel_by_id, get_room_categories_by_hotel, get_room_category_by_id, create_booking, db_pool
-# ОСТАВЛЕНО: только нужные функции, db_pool НЕ импортируем
 from database import get_all_hotels, get_hotel_by_id, get_room_categories_by_hotel, get_room_category_by_id, create_booking, has_overlapping_booking
-# Добавляем функции, которые теперь используются
 from database import get_hotel_id_by_name, get_room_category_id_by_hotel_and_name
 from config import ADMIN_CHAT_ID
 import re
@@ -136,8 +133,17 @@ async def enter_dates(message: Message, state: FSMContext):
             return
             
     except ValueError:
-        await message.answer("❌ Неверный формат дат. Используйте DD.MM.YYYY (например, 20.11.2025).")
+        await message.answer("❌ Неверный формат дат. Используйте DD.MM.YYYY (например, 20.11.2025).",
+            reply_markup=keyboard, # Применяем клавиатуру
+            parse_mode="Markdown")
         return
+    
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="✅ Подтвердить"), KeyboardButton(text="❌ Отмена")]
+        ],
+        resize_keyboard=True
+    )
     
     # Сохраняем даты в формате YYYY-MM-DD для БД
     await state.update_data(check_in=str(check_in), check_out=str(check_out))

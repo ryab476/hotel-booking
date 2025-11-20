@@ -30,14 +30,5 @@ def reply_keyboard(
 get_main_reply_keyboard = reply_keyboard([
     ['🏨 Выбрать гостиницу', '📤 Отправить заявку'],
     ['🎫 Мои брони', '📞 Связаться с админом'],
-    [{'text': '📅 Забронировать номер', 'web_app': MINI_APP_URL}]
+    [{'text': '📅 Забронировать', 'web_app': MINI_APP_URL}]
 ])
-
-# def get_booking_keyboard():
-#     return ReplyKeyboardMarkup(
-#         keyboard=[
-#             [KeyboardButton(text="📅 Забронировать номер", web_app=WebAppInfo(url=MINI_APP_URL))],
-#             [KeyboardButton(text="◀️ Назад")]
-#         ],
-#         resize_keyboard=True
-#     )
